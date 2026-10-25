@@ -1,9 +1,11 @@
-cmake_minimum_required(VERSION 3.15)
+cmake_minimum_required(VERSION 3.18)
 
 project(kmeans VERSION 0.1.0 LANGUAGES C)
 
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
+
+option(KMEANS_BUILD_TESTS "Build the standalone C library tests" OFF)
 
 find_package(Python REQUIRED COMPONENTS Interpreter Development.Module NumPy)
 
@@ -16,32 +18,31 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR})
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR})
 
 # Shared library for C API (optional, for non-Python usage)
-if(EXISTS "${CMAKE_SOURCE_DIR}/src/2d.c" AND EXISTS "${CMAKE_SOURCE_DIR}/src/3d.c")
-  add_library(${PROJECT_NAME}_lib SHARED src/2d.c src/3d.c)
-  target_include_directories(${PROJECT_NAME}_lib PUBLIC 
-    $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/include>
-    $<INSTALL_INTERFACE:include>
-  )
-  set_target_properties(${PROJECT_NAME}_lib PROPERTIES 
-    LINKER_LANGUAGE C
-    C_STANDARD 11
-    OUTPUT_NAME "kmeans"
-  )
-  if(MATH_LIBRARY)
-    target_link_libraries(${PROJECT_NAME}_lib ${MATH_LIBRARY})
-  endif()
+add_library(${PROJECT_NAME}_lib SHARED src/2d.c src/3d.c)
+target_include_directories(${PROJECT_NAME}_lib PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>
+)
+set_target_properties(${PROJECT_NAME}_lib PROPERTIES
+  C_STANDARD 11
+  OUTPUT_NAME "kmeans"
+)
+if(NOT MSVC)
+  target_compile_options(${PROJECT_NAME}_lib PRIVATE -Wall -Wextra -Wpedantic)
+endif()
+if(MATH_LIBRARY)
+  target_link_libraries(${PROJECT_NAME}_lib PRIVATE ${MATH_LIBRARY})
 endif()
 
-# Debug executable
-if(CMAKE_BUILD_TYPE STREQUAL "Debug" AND EXISTS "${CMAKE_SOURCE_DIR}/examples/main.c")
-  add_executable(main examples/main.c)
-  set_target_properties(main PROPERTIES LINKER_LANGUAGE C C_STANDARD 11)
-  if(TARGET ${PROJECT_NAME}_lib)
-    target_link_libraries(main ${PROJECT_NAME}_lib)
-  endif()
+# Tests for the standalone C library (cmake -DKMEANS_BUILD_TESTS=ON)
+if(KMEANS_BUILD_TESTS)
+  enable_testing()
+  add_executable(test_kmeans_lib tests/c/test_kmeans_lib.c)
+  target_link_libraries(test_kmeans_lib PRIVATE ${PROJECT_NAME}_lib)
   if(MATH_LIBRARY)
-    target_link_libraries(main ${MATH_LIBRARY})
+    target_link_libraries(test_kmeans_lib PRIVATE ${MATH_LIBRARY})
   endif()
+  add_test(NAME test_kmeans_lib COMMAND test_kmeans_lib)
 endif()
 
 # Python extension module

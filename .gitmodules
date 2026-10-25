@@ -1,4 +1,0 @@
-[submodule "cmake/cmake-tools"]
-	path = cmake/cmake-tools
-	url = ../cmake-tools.git
-	branch = main

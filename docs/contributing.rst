@@ -25,6 +25,12 @@ Development Setup
 
       pytest tests/
 
+4. Run the standalone C library tests:
+
+   .. code-block:: bash
+
+      make test-c
+
 Code Style
 ----------
 
@@ -40,7 +46,7 @@ The C code uses a custom clang-format style. Format code with:
 
 .. code-block:: bash
 
-   clang-format -i src/kmeans/_kmeans.c
+   clang-format -i src/kmeans/_kmeans.c src/2d.c src/3d.c include/kmeans/kmeans.h tests/c/test_kmeans_lib.c
 
 Key style points:
 

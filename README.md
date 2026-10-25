@@ -1,3 +1,8 @@
+> [!NOTE]
+> **Archived.** This project is feature-complete and no longer maintained.
+> The C library and the Python bindings work as documented; no further
+> development, issue triage or dependency updates are planned.
+
 # KMeans
 
 A fast k-means clustering algorithm implemented in C with Python bindings.
@@ -40,9 +45,10 @@ data = np.vstack([
 centroids, labels = kmeans(data, k=3)
 
 # Using the class-based API
-model = KMeans(n_clusters=3)
+model = KMeans(n_clusters=3, random_state=0)
 model.fit(data)
 predictions = model.predict(data)
+print(model.cluster_centers_, model.inertia_, model.n_iter_)
 ```
 
 ## Features
@@ -50,8 +56,28 @@ predictions = model.predict(data)
 * Fast k-means clustering with C implementation
 * K-means++ initialization
 * NumPy integration
-* Scikit-learn compatible API
+* Scikit-learn style API (`fit`, `predict`, `fit_predict`, `get_params`, `set_params`)
+* Reproducible results via `random_state`
 * Support for arbitrary dimensions
+
+## Standalone C library
+
+`src/2d.c` and `src/3d.c` build into a shared library (`libkmeans`) that can
+be used without Python. See `include/kmeans/kmeans.h` for the API.
+
+```bash
+cmake -S . -B build -DKMEANS_BUILD_TESTS=ON
+cmake --build build
+ctest --test-dir build --output-on-failure
+```
+
+## Development
+
+```bash
+uv sync --group dev
+make check   # ruff, pytest and the C library tests
+make docs    # Sphinx documentation
+```
 
 ## License
 

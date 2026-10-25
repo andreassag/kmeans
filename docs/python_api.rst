@@ -33,17 +33,29 @@ Attributes
 
 After calling :meth:`fit`, the following attributes are available:
 
-.. py:attribute:: centroids_
+.. py:attribute:: cluster_centers_
 
    :type: numpy.ndarray of shape (n_clusters, n_features)
 
-   Coordinates of cluster centers.
+   Coordinates of cluster centers. Also available as ``centroids_``.
 
 .. py:attribute:: labels_
 
    :type: numpy.ndarray of shape (n_samples,)
 
    Labels of each point indicating cluster assignment.
+
+.. py:attribute:: inertia_
+
+   :type: float
+
+   Sum of squared distances of samples to their closest cluster center.
+
+.. py:attribute:: n_iter_
+
+   :type: int
+
+   Number of iterations run.
 
 C Extension Module
 ------------------
@@ -54,16 +66,20 @@ C Extension Module
 
 .. py:module:: kmeans._kmeans
 
-.. py:function:: fit(data, k, max_iterations, tolerance)
+.. py:function:: fit(data, k, max_iter, tol, seed)
 
    Low-level k-means fitting function.
 
    :param numpy.ndarray data: Input data array (n_samples, n_features)
    :param int k: Number of clusters
-   :param int max_iterations: Maximum iterations
-   :param float tolerance: Convergence tolerance
-   :return: Tuple of (centroids, labels)
-   :rtype: tuple[numpy.ndarray, numpy.ndarray]
+   :param int max_iter: Maximum iterations (must be positive)
+   :param float tol: Convergence tolerance (must be non-negative)
+   :param int seed: Seed for the k-means++ initialization
+   :return: Tuple of (centroids, labels, inertia, n_iter)
+   :rtype: tuple[numpy.ndarray, numpy.ndarray, float, int]
+
+   ``data`` must be a C-contiguous ``float64`` array; ``TypeError`` or
+   ``ValueError`` is raised otherwise.
 
 .. py:function:: predict(data, centroids)
 

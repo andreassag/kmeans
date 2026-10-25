@@ -1,28 +1,20 @@
 #include "kmeans/kmeans.h"
 #include <float.h>
+#include <stdint.h>
 #include <string.h>
 
-#ifdef __STDC_LIB_EXT1__
-#define E 1
-#endif
-#ifndef __STDC_LIB_EXT1__
-#define E 2
-#endif
-
-#define MIN_ERROR_DENOMINATOR_SIZE 10000
-
-static size_t calculate_nearst(observation_3d_t *observation, cluster_3d_t clusters[], size_t k)
+static size_t calculate_nearest(const observation_3d_t *observation, const cluster_3d_t clusters[],
+                                size_t k)
 {
   double min_distance = DBL_MAX;
-  double distance = 0;
-
-  size_t nearest_index = -1;
+  size_t nearest_index = 0;
 
   for (size_t index = 0; index < k; index++)
   {
-    distance = (clusters[index].x - observation->x) * (clusters[index].x - observation->x) +
-               (clusters[index].y - observation->y) * (clusters[index].y - observation->y) +
-               (clusters[index].z - observation->z) * (clusters[index].z - observation->z);
+    double dx = clusters[index].x - observation->x;
+    double dy = clusters[index].y - observation->y;
+    double dz = clusters[index].z - observation->z;
+    double distance = dx * dx + dy * dy + dz * dz;
 
     if (distance < min_distance)
     {
@@ -48,90 +40,120 @@ static void calculate_centroid(observation_3d_t observations[], size_t size, clu
     observations[index].group = 0;
   }
 
-  centroid->x /= centroid->count;
-  centroid->y /= centroid->count;
-  centroid->z /= centroid->count;
+  centroid->x /= (double) size;
+  centroid->y /= (double) size;
+  centroid->z /= (double) size;
 }
 
 cluster_3d_t *kmeans_3d(observation_3d_t observations[], size_t size, size_t k)
 {
-  cluster_3d_t *clusters = NULL;
+  if (observations == NULL || size == 0)
+  {
+    return NULL;
+  }
 
   if (k <= 1)
   {
-    clusters = (cluster_3d_t *) malloc(sizeof(cluster_3d_t));
-    memset(clusters, 0, sizeof(cluster_3d_t));
-    calculate_centroid(observations, size, clusters);
-  }
-  else if (k < size)
-  {
-    clusters = malloc(sizeof(cluster_3d_t) * k);
-    memset(clusters, 0, k * sizeof(cluster_3d_t));
-
-    for (size_t index = 0; index < size; index++)
+    cluster_3d_t *cluster = calloc(1, sizeof(cluster_3d_t));
+    if (cluster != NULL)
     {
-      observations[index].group = rand() % k;
+      calculate_centroid(observations, size, cluster);
     }
-
-    size_t changed = 0;
-    size_t min_error = size / MIN_ERROR_DENOMINATOR_SIZE;
-
-    size_t temp = 0;
-
-    do
-    {
-      for (size_t index = 0; index < k; index++)
-      {
-        clusters[index].x = 0;
-        clusters[index].y = 0;
-        clusters[index].z = 0;
-        clusters[index].count = 0;
-      }
-
-      for (size_t index = 0; index < size; index++)
-      {
-        temp = observations[index].group;
-
-        clusters[temp].x += observations[index].x;
-        clusters[temp].y += observations[index].y;
-        clusters[temp].z += observations[index].z;
-        clusters[temp].count++;
-      }
-
-      for (size_t index = 0; index < k; index++)
-      {
-        clusters[index].x /= clusters[index].count;
-        clusters[index].y /= clusters[index].count;
-        clusters[index].z /= clusters[index].count;
-      }
-
-      changed = 0;
-      for (size_t index = 0; index < size; index++)
-      {
-        temp = calculate_nearst(observations + index, clusters, k);
-
-        if (temp != observations[index].group)
-        {
-          changed++;
-          observations[index].group = temp;
-        }
-      }
-    } while (changed > min_error);
+    return cluster;
   }
-  else
-  {
-    clusters = (cluster_3d_t *) malloc(sizeof(cluster_3d_t) * k);
-    memset(clusters, 0, k * sizeof(cluster_3d_t));
 
+  if (k > SIZE_MAX / sizeof(cluster_3d_t))
+  {
+    return NULL;
+  }
+  cluster_3d_t *clusters = calloc(k, sizeof(cluster_3d_t));
+  if (clusters == NULL)
+  {
+    return NULL;
+  }
+
+  if (k >= size)
+  {
     for (size_t index = 0; index < size; index++)
     {
       clusters[index].x = observations[index].x;
       clusters[index].y = observations[index].y;
       clusters[index].z = observations[index].z;
-
       clusters[index].count = 1;
       observations[index].group = index;
     }
+    return clusters;
   }
+
+  for (size_t index = 0; index < size; index++)
+  {
+    observations[index].group = (size_t) rand() % k;
+  }
+
+  for (int iteration = 0; iteration < KMEANS_MAX_ITERATIONS; iteration++)
+  {
+    for (size_t index = 0; index < k; index++)
+    {
+      clusters[index].x = 0;
+      clusters[index].y = 0;
+      clusters[index].z = 0;
+      clusters[index].count = 0;
+    }
+
+    for (size_t index = 0; index < size; index++)
+    {
+      cluster_3d_t *cluster = &clusters[observations[index].group];
+      cluster->x += observations[index].x;
+      cluster->y += observations[index].y;
+      cluster->z += observations[index].z;
+      cluster->count++;
+    }
+
+    for (size_t index = 0; index < k; index++)
+    {
+      if (clusters[index].count == 0)
+      {
+        // Re-seed an empty cluster from a random observation.
+        const observation_3d_t *seed = &observations[(size_t) rand() % size];
+        clusters[index].x = seed->x;
+        clusters[index].y = seed->y;
+        clusters[index].z = seed->z;
+      }
+      else
+      {
+        clusters[index].x /= (double) clusters[index].count;
+        clusters[index].y /= (double) clusters[index].count;
+        clusters[index].z /= (double) clusters[index].count;
+      }
+    }
+
+    size_t changed = 0;
+    for (size_t index = 0; index < size; index++)
+    {
+      size_t nearest = calculate_nearest(&observations[index], clusters, k);
+
+      if (nearest != observations[index].group)
+      {
+        changed++;
+        observations[index].group = nearest;
+      }
+    }
+
+    if (changed == 0)
+    {
+      break;
+    }
+  }
+
+  // Report counts consistent with the final assignments.
+  for (size_t index = 0; index < k; index++)
+  {
+    clusters[index].count = 0;
+  }
+  for (size_t index = 0; index < size; index++)
+  {
+    clusters[observations[index].group].count++;
+  }
+
   return clusters;
 }

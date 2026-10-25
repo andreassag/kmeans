@@ -6,7 +6,7 @@ Requirements
 
 * Python >= 3.10
 * NumPy
-* CMake >= 3.15
+* CMake >= 3.18
 * C compiler (gcc, clang, or MSVC)
 
 Using pip

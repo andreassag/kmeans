@@ -1,4 +1,4 @@
-.PHONY: help install install-dev build clean test coverage docs lint format format-python format-c check all
+.PHONY: help install install-dev build clean test test-c coverage docs lint format format-python format-c check all
 
 # Default target
 help:
@@ -7,6 +7,7 @@ help:
 	@echo "  build          - Build the package wheel"
 	@echo "  clean          - Remove build artifacts and caches"
 	@echo "  test           - Run tests with pytest"
+	@echo "  test-c         - Build and run the standalone C library tests (CTest)"
 	@echo "  coverage       - Run tests with coverage report"
 	@echo "  docs           - Build Sphinx documentation"
 	@echo "  lint           - Run linting (ruff for Python, clang-tidy for C)"
@@ -47,6 +48,11 @@ clean:
 test:
 	uv run pytest tests/ -v
 
+test-c:
+	cmake -S . -B build/c-tests -DKMEANS_BUILD_TESTS=ON -DCMAKE_BUILD_TYPE=Debug
+	cmake --build build/c-tests --target test_kmeans_lib
+	ctest --test-dir build/c-tests --output-on-failure
+
 coverage:
 	@echo "Running tests with coverage (Python code only)..."
 	uv run pytest tests/ --cov=src/kmeans --cov-report=html --cov-report=term-missing --cov-report=xml
@@ -80,7 +86,7 @@ format-python:
 format-c:
 	@echo "Formatting C code with clang-format..."
 	@if command -v clang-format >/dev/null 2>&1; then \
-		find src/ -name "*.c" -o -name "*.h" | xargs clang-format -i; \
+		find src/ include/ tests/c -name "*.c" -o -name "*.h" | xargs clang-format -i; \
 		echo "C code formatted!"; \
 	else \
 		echo "Warning: clang-format not found, skipping C formatting"; \
@@ -102,7 +108,7 @@ lint-c:
 	fi
 
 # Combined targets
-check: lint test
+check: lint test test-c
 
 all: clean format lint test docs
 	@echo "All tasks completed successfully!"

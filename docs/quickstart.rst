@@ -98,23 +98,20 @@ High-Dimensional Data
    model.fit(data_10d)
    print(f"Centroids shape: {model.centroids_.shape}")  # (5, 10)
 
-Integration with scikit-learn
-------------------------------
+scikit-learn conventions
+------------------------
+
+``KMeans`` follows scikit-learn conventions (``fit``/``predict``/``fit_predict``,
+trailing-underscore attributes, ``get_params``/``set_params``, ``random_state``),
+but it is not a scikit-learn ``BaseEstimator`` and is not guaranteed to work
+inside scikit-learn ``Pipeline`` objects.
+
+Reproducible results
+--------------------
 
 .. code-block:: python
 
-   from sklearn.preprocessing import StandardScaler
-   from sklearn.pipeline import Pipeline
    from kmeans import KMeans
 
-   # Create a pipeline
-   pipeline = Pipeline([
-       ('scaler', StandardScaler()),
-       ('kmeans', KMeans(n_clusters=3))
-   ])
-
-   # Fit the pipeline
-   pipeline.fit(data)
-
-   # Get labels
-   labels = pipeline.named_steps['kmeans'].labels_
+   model = KMeans(n_clusters=3, random_state=42).fit(data)
+   print(model.cluster_centers_, model.inertia_, model.n_iter_)

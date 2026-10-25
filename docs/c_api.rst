@@ -8,8 +8,28 @@ understand or extend the underlying algorithm.
    The C extension is implemented in ``src/kmeans/_kmeans.c``. 
    This documentation describes the algorithm and function signatures.
 
-Algorithm Overview
-------------------
+Standalone C Library
+--------------------
+
+``src/2d.c`` and ``src/3d.c`` build into ``libkmeans`` for use without Python
+(``include/kmeans/kmeans.h``):
+
+.. code-block:: c
+
+   cluster_2d_t *kmeans_2d(observation_2d_t observations[], size_t size, size_t k);
+   cluster_3d_t *kmeans_3d(observation_3d_t observations[], size_t size, size_t k);
+
+Each observation's ``group`` is set to its cluster index. The returned array
+of ``max(k, 1)`` clusters is heap-allocated and must be released with
+``free()``. ``NULL`` is returned for empty input or on allocation failure.
+``k <= 1`` yields one cluster at the mean, and ``k >= size`` yields one cluster
+per observation. Otherwise Lloyd's algorithm runs from a random initial
+assignment (using ``rand()``; seed it with ``srand()``) for at most
+``KMEANS_MAX_ITERATIONS`` iterations, re-seeding empty clusters from a random
+observation. Tests live in ``tests/c`` and run with ``make test-c``.
+
+Python Extension Algorithm Overview
+-----------------------------------
 
 The k-means implementation uses the following approach:
 
@@ -26,7 +46,7 @@ Distance Calculation
 
 .. code-block:: c
 
-   static double squared_distance(const double *a, const double *b, int dims)
+   static double squared_distance(const double *a, const double *b, size_t dims)
 
 Calculate squared Euclidean distance between two points.
 
@@ -42,7 +62,8 @@ Find Nearest Centroid
 
    static int find_nearest_centroid(const double *point, 
                                      const double *centroids,
-                                     int k, int dims)
+                                     size_t k, size_t dims,
+                                     double *out_dist)
 
 Find the index of the nearest centroid for a given point.
 
@@ -50,6 +71,7 @@ Find the index of the nearest centroid for a given point.
 :param centroids: Array of all centroid coordinates
 :param k: Number of clusters
 :param dims: Number of dimensions
+:param out_dist: Optional output for the squared distance to that centroid
 :return: Index of nearest centroid (0 to k-1)
 
 K-means++ Initialization
@@ -57,9 +79,10 @@ K-means++ Initialization
 
 .. code-block:: c
 
-   static void init_centroids_kmeanspp(const double *data, 
-                                        int n_samples, int dims,
-                                        int k, double *centroids)
+   static int init_centroids_kmeanspp(const double *data, 
+                                       size_t n_samples, size_t dims,
+                                       size_t k, double *centroids,
+                                       rng_t *rng)
 
 Initialize centroids using the k-means++ algorithm.
 
@@ -85,9 +108,10 @@ Main K-means Algorithm
 
 .. code-block:: c
 
-   static int kmeans_core(const double *data, int n_samples, int dims, 
-                          int k, int max_iter, double tol, 
-                          double *centroids, int *labels)
+   static int kmeans_core(const double *data, size_t n_samples, size_t dims, 
+                          size_t k, int max_iter, double tol, uint64_t seed,
+                          double *centroids, int *labels,
+                          double *inertia, int *n_iter)
 
 Main k-means clustering algorithm.
 
@@ -98,7 +122,10 @@ Main k-means clustering algorithm.
 :param max_iter: Maximum number of iterations
 :param tol: Convergence tolerance
 :param centroids: Output array for final centroids
+:param seed: Seed for the extension's internal PRNG (splitmix64)
 :param labels: Output array for cluster assignments
+:param inertia: Output for the sum of squared distances to the centroids
+:param n_iter: Output for the number of iterations run
 :return: 0 on success, -1 on memory allocation failure
 
 **Convergence:**
