@@ -47,6 +47,7 @@ build-dir = "build/{wheel_tag}"
 
 [tool.scikit-build.cmake.define]
 CMAKE_BUILD_TYPE = "Release"
+KMEANS_BUILD_PYTHON = "ON"
 
 #[tool.uv.extra-build-dependencies]
 #kmeans = ["scikit_build_core"]

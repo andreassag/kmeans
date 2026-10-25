@@ -7,7 +7,12 @@ set(CMAKE_C_STANDARD_REQUIRED ON)
 
 option(KMEANS_BUILD_TESTS "Build the standalone C library tests" OFF)
 
-find_package(Python REQUIRED COMPONENTS Interpreter Development.Module NumPy)
+if(DEFINED SKBUILD)
+  set(KMEANS_BUILD_PYTHON_DEFAULT ON)
+else()
+  set(KMEANS_BUILD_PYTHON_DEFAULT OFF)
+endif()
+option(KMEANS_BUILD_PYTHON "Build Python extension module" ${KMEANS_BUILD_PYTHON_DEFAULT})
 
 include_directories(include)
 
@@ -46,21 +51,25 @@ if(KMEANS_BUILD_TESTS)
 endif()
 
 # Python extension module
-python_add_library(_kmeans MODULE
-    src/kmeans/_kmeans.c
-    WITH_SOABI
-)
+if(KMEANS_BUILD_PYTHON)
+  find_package(Python REQUIRED COMPONENTS Interpreter Development.Module NumPy)
 
-target_include_directories(_kmeans PRIVATE
-    ${Python_NumPy_INCLUDE_DIRS}
-    ${CMAKE_SOURCE_DIR}/include
-)
+  python_add_library(_kmeans MODULE
+      src/kmeans/_kmeans.c
+      WITH_SOABI
+  )
 
-target_link_libraries(_kmeans PRIVATE Python::NumPy)
+  target_include_directories(_kmeans PRIVATE
+      ${Python_NumPy_INCLUDE_DIRS}
+      ${CMAKE_SOURCE_DIR}/include
+  )
 
-if(MATH_LIBRARY)
-  target_link_libraries(_kmeans PRIVATE ${MATH_LIBRARY})
+  target_link_libraries(_kmeans PRIVATE Python::NumPy)
+
+  if(MATH_LIBRARY)
+    target_link_libraries(_kmeans PRIVATE ${MATH_LIBRARY})
+  endif()
+
+  # Install the extension module
+  install(TARGETS _kmeans DESTINATION kmeans)
 endif()
-
-# Install the extension module
-install(TARGETS _kmeans DESTINATION kmeans)
